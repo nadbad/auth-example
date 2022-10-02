@@ -18,11 +18,12 @@ export class AuthService {
 
   async signupLocal(dto: AuthDto): Promise<Tokens> {
     const hash = await argon.hash(dto.password);
+    const email = dto.email.toLocaleLowerCase();
 
     const user = await this.prisma.user
       .create({
         data: {
-          email: dto.email,
+          email,
           hash,
         },
       })
@@ -42,9 +43,11 @@ export class AuthService {
   }
 
   async signinLocal(dto: AuthDto): Promise<Tokens> {
+    const email = dto.email.toLocaleLowerCase();
+
     const user = await this.prisma.user.findUnique({
       where: {
-        email: dto.email,
+        email,
       },
     });
 
