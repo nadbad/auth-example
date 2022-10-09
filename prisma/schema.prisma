@@ -15,9 +15,16 @@ model User {
   email String @unique
   hash String
   hashedRt String?
+  role Role @default(USER)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+enum Role {
+  USER
+  SUPERVISER
+  SUPERUSER
 }
