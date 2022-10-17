@@ -1,35 +1,53 @@
-import { Body, Controller, Get, Put, Request, UseGuards } from '@nestjs/common';
-import { ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+import { User } from '@prisma/client';
+
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersService } from './user.service';
 
+import { PaginationParams } from 'helpers/pagination-params';
 import { Public, GetCurrentUserId, GetCurrentUser } from 'common/decorators';
-import { RtGuard } from 'common/guards';
-import { AuthGuard } from '@nestjs/passport';
-import { UpdatePasswordDto } from './dto/users.dto';
-import { RenderUser } from './RenderUser';
+import { Many } from 'helpers/find-many';
+import { omit } from 'lodash';
+import { ApiTagsAndBearer } from 'common/decorators/api-tags-bearer.decorator';
 
-@ApiTags('user')
-@Controller('user')
+import { Actions } from 'providers/casl/casl-ability.factory';
+import { PoliciesGuard, CheckAbilities } from 'providers/casl/casl.guard';
+
+@ApiTagsAndBearer('users')
+@Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-  @Public()
-  @UseGuards(RtGuard)
-  @Get('me')
-  public async me(@Request() req) {
-    return new RenderUser(req.user);
+
+  @Get()
+  @UseGuards(PoliciesGuard)
+  @CheckAbilities({ action: Actions.ReadMany, subject: 'User' })
+  public async findAll(
+    @Query() params: PaginationParams,
+  ): Promise<Many<Omit<User, 'hash'>>> {
+    return this.usersService.findUsers(params).then((many) => {
+      many.data = many.data.map((user) =>
+        omit(user, ['hash', 'hashRt']),
+      ) as any;
+      return many;
+    });
   }
 
-  @Public()
-  @UseGuards(RtGuard)
-  @Put('update/password')
-  public async updatePassword(
-    @Request() req,
-    @Body()
-    updatePasswordDto: UpdatePasswordDto,
-  ) {
-    await this.usersService.updatePassword(updatePasswordDto, req.user.id);
-    return {
-      message: 'password_update_success',
-    };
+  @Get('/:userId')
+  public async findOne(
+    @Param('userId') userId: number,
+  ): Promise<Omit<User, 'hash'>> {
+    return this.usersService
+      .findUser({ id: userId })
+      .then((user) => omit(user, ['hash', 'hashRt']));
   }
 }
